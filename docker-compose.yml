@@ -1,0 +1,27 @@
+version: '3.8'
+services:
+  postgres:
+    image: 'postgres:14.2'
+    ports: 
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: recipes
+  todo:
+    build: 
+      context: .
+      dockerfile: ./deploy/Dockerfile
+    ports:
+      - "4444:80"
+    depends_on:
+      - postgres
+    restart: on-failure:5
+    environment:
+      GIN_MODE: release
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: recipes
+      SERVER_ADDR: 0.0.0.0:80
