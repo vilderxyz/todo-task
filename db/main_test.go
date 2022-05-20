@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var testQueries Model
+var testQueries DB
 
 func TestMain(m *testing.M) {
 	dsn := fmt.Sprintf("postgres://%v:%v@%v:%v/%v?sslmode=disable",

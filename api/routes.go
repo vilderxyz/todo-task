@@ -4,7 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Setups all available http routes for gin.Default router
+// Setups all available http routes
 func (s *Server) setupRouter() {
 	router := gin.Default()
 

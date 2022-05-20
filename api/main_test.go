@@ -9,7 +9,7 @@ import (
 	"github.com/vilderxyz/todos/mock"
 )
 
-func newTestServer(t *testing.T, mockModel *mock.MockModel) *Server {
+func newTestServer(t *testing.T, mockModel *mock.MockDB) *Server {
 	server := NewServer(nil)
 	require.NotEmpty(t, server)
 

@@ -5,8 +5,8 @@ import (
 	"time"
 )
 
+// Data struct for CreateOneTodo.
 type CreateTodoParams struct {
-	Id          int64     `json:"id"`
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
 	Expiry      time.Time `json:"expiry"`
@@ -19,7 +19,9 @@ func (q *Queries) GetAllTodos() ([]Todo, error) {
 	return todos, result.Error
 }
 
-// Inserts single Todo to database
+// Inserts single Todo to database.
+//
+// Sets completion at 0.0 and marks Todo as unfinished.
 func (q *Queries) CreateOneTodo(params CreateTodoParams) (Todo, error) {
 	todo := Todo{
 		Title:       params.Title,
@@ -32,14 +34,16 @@ func (q *Queries) CreateOneTodo(params CreateTodoParams) (Todo, error) {
 	return todo, result.Error
 }
 
-// Returns slice of unfinished Todos from database between two "yyyy-mm-dd" dates.
+// Returns slice of unfinished Todos from database between two terms of time.
 func (q *Queries) GetManyTodos(startDate, endDate time.Time) ([]Todo, error) {
 	var todos []Todo
 	result := q.db.Where("(expiry BETWEEN ? AND ?) AND NOT is_done", startDate, endDate).Find(&todos)
 	return todos, result.Error
 }
 
-// Returns single Todo with given Id
+// Returns single Todo for given Id.
+//
+// Throws en error when not found in database.
 func (q *Queries) GetOneTodoById(id int64) (Todo, error) {
 	todo := Todo{Id: id}
 	result := q.db.First(&todo)

@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -11,23 +10,34 @@ import (
 )
 
 // General response object for successful requests.
-// Data field can be ignored.
+//
+// Data field can be omitted.
 type Response struct {
 	Message string `json:"message"`
 	Data    any    `json:"data,omitempty"`
 }
 
-// Required object for createTodo request. Another json fields will be ignored.
+// Request object for createTodo.
+//
 // Title and Description should have a minimum 1 character.
-// Expiry date must be in given format "yyyy-mm-dd" or it throws an error.
+//
+// Expiry must be a future date and in given format "yyyy-mm-dd".
+//
+// Otherwise throws 400 status.
+//
+// Example:
+// 	{
+//		"title": 		 "Clean house"
+//		"description":	"I need to clean my house till 2022-12-23"
+//		"expiry":		 "2022-12-23"
+//	}
 type CreateTodoRequest struct {
 	Title       string `json:"title" binding:"required,min=1"`
 	Description string `json:"description" binding:"required,min=1"`
-	Expiry      string `json:"expiry" binding:"required" time_format="2006-01-02"`
+	Expiry      string `json:"expiry" binding:"required" time_format:"2006-01-02"`
 }
 
-// Validates request's body, creates Todo object and stores it in the database.
-// Expiry date must be in the future or it throws ab error.
+// Validates request body and stores new Todo object in database.
 func (s *Server) createTodo(ctx *gin.Context) {
 	req := CreateTodoRequest{}
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -37,7 +47,7 @@ func (s *Server) createTodo(ctx *gin.Context) {
 
 	expiryTime, err := time.Parse("2006-01-02", req.Expiry)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
 	if expiryTime.Before(time.Now()) {
@@ -51,7 +61,6 @@ func (s *Server) createTodo(ctx *gin.Context) {
 		Expiry:      expiryTime,
 	})
 	if err != nil {
-		log.Println(err)
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
@@ -62,12 +71,19 @@ func (s *Server) createTodo(ctx *gin.Context) {
 	})
 }
 
-// Request's uri to be validated. Id must be greater then 1.
+// Request object that must contain uri with Id.
+//
+// Id must be greater then 1.
+//
+// Example:
+//	"http://localhost/todos/Id"
 type GetTodoByIdRequest struct {
 	Id int64 `uri:"id" binding:"required,min=1"`
 }
 
-// Returns Todo object for given Id. Throws 404 when not found with error message.
+// Returns Todo object for given Id.
+//
+// Throws 404 status when not found.
 func (s *Server) getTodoById(ctx *gin.Context) {
 	req := GetTodoByIdRequest{}
 	if err := ctx.ShouldBindUri(&req); err != nil {
@@ -90,19 +106,34 @@ func (s *Server) getTodoById(ctx *gin.Context) {
 	})
 }
 
-// Required object for updateTodoTextInfo request. Another json fields will be ignored.
-// Title and Description should have a minimum 1 character. Id must be greater then 1.
-// Expiry date needs to be in given format "yyyy-mm-dd" or it throws an error.
+// Request object for updateTodoTextInfo.
+//
+// Title and Description should have a minimum 1 character.
+//
+// Expiry must be a future date and in given format "yyyy-mm-dd".
+//
+// Id must be greater then 1.
+//
+// Otherwise throws 400 status.
+//
+// Example:
+// 	{
+//		"id":			 123
+//		"title": 		 "Clean house"
+//		"description":	"I need to clean my house till 2022-12-23"
+//		"expiry":		 "2022-12-23"
+//	}
 type UpdateTodoInfoRequest struct {
 	Id          int64  `json:"id" binding:"required,min=1"`
 	Title       string `json:"title" binding:"required,min=1"`
 	Description string `json:"description" binding:"required,min=1"`
-	Expiry      string `json:"expiry" binding:"required" time_format="2006-01-02"`
+	Expiry      string `json:"expiry" binding:"required" time_format:"2006-01-02"`
 }
 
-// Finds Todo object from database for given Id. Replaces its text parameters
-// with those from request and stores updated object back to database.
-// Expiry date must be in the future or it throws en error.
+// Finds Todo object from database for given Id. Throws 404 when not found.
+//
+// Then it replaces its Title, Description and Expiry parameters
+// with those from request and stores updated object back to the database.
 func (s *Server) updateTodoTextInfo(ctx *gin.Context) {
 	req := UpdateTodoInfoRequest{}
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -112,7 +143,7 @@ func (s *Server) updateTodoTextInfo(ctx *gin.Context) {
 
 	expiryTime, err := time.Parse("2006-01-02", req.Expiry)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
 	if expiryTime.Before(time.Now()) {
@@ -136,10 +167,6 @@ func (s *Server) updateTodoTextInfo(ctx *gin.Context) {
 
 	res, err := s.Queries.UpdateOneTodo(todo)
 	if err != nil {
-		if err.Error() == "not found" {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
-			return
-		}
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
@@ -150,16 +177,30 @@ func (s *Server) updateTodoTextInfo(ctx *gin.Context) {
 	})
 }
 
-// Required object for updateTodoCompletionInfo request. Another json fields are ignored.
-// Id must be greater then 1. Completion needs to be between 0 and 100.
+// Request object for updateTodoCompletionInfo.
+//
+// Completion needs to be between 0 and 100.
+//
+// Id must be greater then 1.
+//
+// Otherwise throws 400 status.
+//
+// Example:
+// 	{
+//		"id":			 123
+//		"completion":	 99.99
+//		"expiry":		 "2022-12-23"
+//	}
 type UpdateTodoCompletionRequest struct {
 	Id         int64   `json:"id" binding:"required,min=1"`
 	Completion float32 `json:"completion" binding:"required,gte=0,lte=100"`
 }
 
-// Finds Todo object from database for given Id. Replaces its parameters
-// with those from request and stores updated object back to database.
-// Completion value must be greater than that present in the database.
+// Finds Todo object from database for given Id. Throws 404 status when not found.
+//
+// Then it replaces its Completion parameter with requested one and stores it back in database.
+//
+// It throws 400 status when requested completion value is lower than the actual one.
 func (s *Server) updateTodoCompletionInfo(ctx *gin.Context) {
 	req := UpdateTodoCompletionRequest{}
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -186,10 +227,6 @@ func (s *Server) updateTodoCompletionInfo(ctx *gin.Context) {
 
 	res, err := s.Queries.UpdateOneTodo(todo)
 	if err != nil {
-		if err.Error() == "not found" {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
-			return
-		}
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
@@ -200,16 +237,29 @@ func (s *Server) updateTodoCompletionInfo(ctx *gin.Context) {
 	})
 }
 
-// Required object for updateTodoDoneInfo request. Another json fields are ignored.
-// Id must be greater then 1. IsDone needs to be true.
+// Request object for updateTodoCompletionInfo.
+//
+// IsDone must be true.
+//
+// Id must be greater then 1.
+//
+// Otherwise throws 400 status.
+//
+// Example:
+// 	{
+//		"id":		 123
+//		"is_done":	true
+//	}
 type UpdateTodoDoneRequest struct {
 	Id     int64 `json:"id" binding:"required,min=1"`
 	IsDone bool  `json:"is_done" binding:"required"`
 }
 
-// Finds Todo object from database for given Id. Replaces its parameters
-// with those from request and stores updated object back to database.
-// IsDone field must change object's value from false to true or it throws BadRequest.
+// Finds Todo object from database for given Id. Throws 404 status when not found.
+//
+// Then it replaces its IsDone parameter with requested one and stores it back in database.
+//
+// It throws 400 status when Todo is already finished.
 func (s *Server) updateTodoDoneInfo(ctx *gin.Context) {
 	req := UpdateTodoDoneRequest{}
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -236,10 +286,6 @@ func (s *Server) updateTodoDoneInfo(ctx *gin.Context) {
 
 	res, err := s.Queries.UpdateOneTodo(todo)
 	if err != nil {
-		if err.Error() == "not found" {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
-			return
-		}
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
@@ -250,12 +296,19 @@ func (s *Server) updateTodoDoneInfo(ctx *gin.Context) {
 	})
 }
 
-// Request object with uri to be validated. Id must be greater then 0.
+// Request object that must contain uri with Id.
+//
+// Id must be greater then 1.
+//
+// Example:
+//	"http://localhost/todos/Id"
 type DeleteTodoRequest struct {
 	Id int64 `uri:"id" binding:"required,min=1"`
 }
 
-// Deletes Todo with given Id. Throws NotFound when it affected 0 rows.
+// Deletes Todo with given Id.
+//
+// Throws 404 when it deleted nothing.
 func (s *Server) deleteTodo(ctx *gin.Context) {
 	req := DeleteTodoRequest{}
 	if err := ctx.ShouldBindUri(&req); err != nil {
@@ -278,15 +331,22 @@ func (s *Server) deleteTodo(ctx *gin.Context) {
 	})
 }
 
-// Request object with queries. Can be omitted.
+// Request object with period query. Can be omitted.
+//
+// Period must be string and of one [ "today" , "tomorrow" , "week" , ""].
+//
+// Otherwise throws 400 status.
+//
+// Examples:
+//	"http://localhost/todos" 				- gets all finished and unfinished Todos
+//	"http://localhost/todos?period=today"    - gets all unfinished Todos that expires after today
+//	"http://localhost/todos?period=tomorrow" - gets all unfinished Todos that expires after tomorrow
+//	"http://localhost/todos?period=week" 	- gets all unfinished Todos that expires after Sunday this week
 type GetTodosRequest struct {
-	Period string `form:"period"`
+	Period string `form:"period" binding:"period"`
 }
 
-// Gets slice of Todo objects depending on given uri. If uri field is omitted, it returns
-// all todos from database regardless their status. If uri is in [today, tomorrow, week],
-// it returns slice of unfinished Todos that expire within a specified period of time.
-// Otherwise it throws BadRequest.
+// Gets slice of Todo objects depending on given Period query.
 func (s *Server) getTodos(ctx *gin.Context) {
 	req := GetTodosRequest{}
 	if err := ctx.ShouldBindQuery(&req); err != nil {

@@ -7,56 +7,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
-	"github.com/vilderxyz/todos/db"
 	"github.com/vilderxyz/todos/mock"
 )
 
 func TestCreateTodo(t *testing.T) {
-	todo := db.Todo{
-		Id:          123,
-		Title:       "title",
-		Description: "desc",
-		Expiry:      time.Now().Add(time.Hour),
-		IsDone:      false,
-		Completion:  50,
-	}
 
-	testCases := []struct {
-		name          string
-		body          gin.H
-		buildStubs    func(model *mock.MockModel)
-		checkResponse func(recorder *httptest.ResponseRecorder)
-	}{
-		{
-			name: "StatusOK",
-			body: gin.H{
-				"title":       todo.Title,
-				"description": todo.Description,
-				"expiry":      "2022-05-22",
-			},
-			buildStubs: func(model *mock.MockModel) {
-				expiryTime, err := time.Parse("2006-01-02", "2022-05-22")
-				require.NoError(t, err)
-				req := db.CreateTodoParams{
-					Title:       todo.Title,
-					Description: todo.Description,
-					Expiry:      expiryTime,
-				}
-				model.EXPECT().
-					CreateOneTodo(gomock.Eq(req)).
-					Times(1).
-					Return(todo, nil)
-			},
-			checkResponse: func(recorder *httptest.ResponseRecorder) {
-				require.Equal(t, http.StatusOK, recorder.Code)
-			},
-		},
-	}
+	testCases := getCreateTodoCases(t)
 
 	for i := range testCases {
 		tc := testCases[i]
@@ -65,7 +24,7 @@ func TestCreateTodo(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			model := mock.NewMockModel(ctrl)
+			model := mock.NewMockDB(ctrl)
 			tc.buildStubs(model)
 
 			server := newTestServer(t, model)
@@ -85,35 +44,8 @@ func TestCreateTodo(t *testing.T) {
 }
 
 func TestGetTodoById(t *testing.T) {
-	todo := db.Todo{
-		Id:          123,
-		Title:       "title",
-		Description: "desc",
-		Expiry:      time.Now().Add(time.Hour),
-		IsDone:      false,
-		Completion:  50,
-	}
 
-	testCases := []struct {
-		name          string
-		todoId        int64
-		buildStubs    func(model *mock.MockModel)
-		checkResponse func(recorder *httptest.ResponseRecorder)
-	}{
-		{
-			name:   "StatusOK",
-			todoId: todo.Id,
-			buildStubs: func(model *mock.MockModel) {
-				model.EXPECT().
-					GetOneTodoById(gomock.Eq(todo.Id)).
-					Times(1).
-					Return(todo, nil)
-			},
-			checkResponse: func(recorder *httptest.ResponseRecorder) {
-				require.Equal(t, http.StatusOK, recorder.Code)
-			},
-		},
-	}
+	testCases := getGetTodoCases(t)
 
 	for i := range testCases {
 		tc := testCases[i]
@@ -122,7 +54,7 @@ func TestGetTodoById(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			model := mock.NewMockModel(ctrl)
+			model := mock.NewMockDB(ctrl)
 			tc.buildStubs(model)
 
 			server := newTestServer(t, model)
@@ -139,56 +71,8 @@ func TestGetTodoById(t *testing.T) {
 }
 
 func TestUpdateTextTodo(t *testing.T) {
-	todo := db.Todo{
-		Id:          123,
-		Title:       "title",
-		Description: "desc",
-		Expiry:      time.Now().Add(time.Hour),
-		IsDone:      false,
-		Completion:  50,
-	}
 
-	updatedTitle := "t"
-	updatedDesc := "d"
-	updatedExpiry := "2022-05-30"
-
-	testCases := []struct {
-		name          string
-		body          gin.H
-		buildStubs    func(model *mock.MockModel)
-		checkResponse func(recorder *httptest.ResponseRecorder)
-	}{
-		{
-			name: "StatusOK",
-			body: gin.H{
-				"title":       updatedTitle,
-				"description": updatedDesc,
-				"expiry":      updatedExpiry,
-				"id":          todo.Id,
-			},
-			buildStubs: func(model *mock.MockModel) {
-				expiryTime, err := time.Parse("2006-01-02", updatedExpiry)
-				require.NoError(t, err)
-
-				model.EXPECT().
-					GetOneTodoById(gomock.Eq(todo.Id)).
-					Times(1).
-					Return(todo, nil)
-
-				todo.Description = updatedDesc
-				todo.Title = updatedTitle
-				todo.Expiry = expiryTime
-
-				model.EXPECT().
-					UpdateOneTodo(gomock.Eq(todo)).
-					Times(1).
-					Return(todo, nil)
-			},
-			checkResponse: func(recorder *httptest.ResponseRecorder) {
-				require.Equal(t, http.StatusOK, recorder.Code)
-			},
-		},
-	}
+	testCases := getUpdateTodoTextCases(t)
 
 	for i := range testCases {
 		tc := testCases[i]
@@ -197,7 +81,7 @@ func TestUpdateTextTodo(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			model := mock.NewMockModel(ctrl)
+			model := mock.NewMockDB(ctrl)
 			tc.buildStubs(model)
 
 			server := newTestServer(t, model)
@@ -217,47 +101,8 @@ func TestUpdateTextTodo(t *testing.T) {
 }
 
 func TestUpdateCompletionTodo(t *testing.T) {
-	todo := db.Todo{
-		Id:          123,
-		Title:       "title",
-		Description: "desc",
-		Expiry:      time.Now().Add(time.Hour),
-		IsDone:      false,
-		Completion:  50,
-	}
 
-	updatedCompletion := 51
-
-	testCases := []struct {
-		name          string
-		body          gin.H
-		buildStubs    func(model *mock.MockModel)
-		checkResponse func(recorder *httptest.ResponseRecorder)
-	}{
-		{
-			name: "StatusOK",
-			body: gin.H{
-				"completion": updatedCompletion,
-				"id":         todo.Id,
-			},
-			buildStubs: func(model *mock.MockModel) {
-				model.EXPECT().
-					GetOneTodoById(gomock.Eq(todo.Id)).
-					Times(1).
-					Return(todo, nil)
-
-				todo.Completion = float32(updatedCompletion)
-
-				model.EXPECT().
-					UpdateOneTodo(gomock.Eq(todo)).
-					Times(1).
-					Return(todo, nil)
-			},
-			checkResponse: func(recorder *httptest.ResponseRecorder) {
-				require.Equal(t, http.StatusOK, recorder.Code)
-			},
-		},
-	}
+	testCases := getUpdateTodoCompletionCases(t)
 
 	for i := range testCases {
 		tc := testCases[i]
@@ -266,7 +111,7 @@ func TestUpdateCompletionTodo(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			model := mock.NewMockModel(ctrl)
+			model := mock.NewMockDB(ctrl)
 			tc.buildStubs(model)
 
 			server := newTestServer(t, model)
@@ -286,45 +131,8 @@ func TestUpdateCompletionTodo(t *testing.T) {
 }
 
 func TestUpdateDoneTodo(t *testing.T) {
-	todo := db.Todo{
-		Id:          123,
-		Title:       "title",
-		Description: "desc",
-		Expiry:      time.Now().Add(time.Hour),
-		IsDone:      false,
-		Completion:  50,
-	}
 
-	testCases := []struct {
-		name          string
-		body          gin.H
-		buildStubs    func(model *mock.MockModel)
-		checkResponse func(recorder *httptest.ResponseRecorder)
-	}{
-		{
-			name: "StatusOK",
-			body: gin.H{
-				"is_done": true,
-				"id":      todo.Id,
-			},
-			buildStubs: func(model *mock.MockModel) {
-				model.EXPECT().
-					GetOneTodoById(gomock.Eq(todo.Id)).
-					Times(1).
-					Return(todo, nil)
-
-				todo.IsDone = true
-
-				model.EXPECT().
-					UpdateOneTodo(gomock.Eq(todo)).
-					Times(1).
-					Return(todo, nil)
-			},
-			checkResponse: func(recorder *httptest.ResponseRecorder) {
-				require.Equal(t, http.StatusOK, recorder.Code)
-			},
-		},
-	}
+	testCases := getUpdateTodoDoneCases(t)
 
 	for i := range testCases {
 		tc := testCases[i]
@@ -333,7 +141,7 @@ func TestUpdateDoneTodo(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			model := mock.NewMockModel(ctrl)
+			model := mock.NewMockDB(ctrl)
 			tc.buildStubs(model)
 
 			server := newTestServer(t, model)
@@ -353,35 +161,8 @@ func TestUpdateDoneTodo(t *testing.T) {
 }
 
 func TestDeleteTodo(t *testing.T) {
-	todo := db.Todo{
-		Id:          123,
-		Title:       "title",
-		Description: "desc",
-		Expiry:      time.Now().Add(time.Hour),
-		IsDone:      false,
-		Completion:  50,
-	}
 
-	testCases := []struct {
-		name          string
-		todoId        int64
-		buildStubs    func(model *mock.MockModel)
-		checkResponse func(recorder *httptest.ResponseRecorder)
-	}{
-		{
-			name:   "StatusOK",
-			todoId: todo.Id,
-			buildStubs: func(model *mock.MockModel) {
-				model.EXPECT().
-					DeleteOneTodo(gomock.Eq(todo.Id)).
-					Times(1).
-					Return(nil)
-			},
-			checkResponse: func(recorder *httptest.ResponseRecorder) {
-				require.Equal(t, http.StatusOK, recorder.Code)
-			},
-		},
-	}
+	testCases := getDeleteTodoCases(t)
 
 	for i := range testCases {
 		tc := testCases[i]
@@ -390,7 +171,7 @@ func TestDeleteTodo(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			model := mock.NewMockModel(ctrl)
+			model := mock.NewMockDB(ctrl)
 			tc.buildStubs(model)
 
 			server := newTestServer(t, model)
@@ -407,39 +188,8 @@ func TestDeleteTodo(t *testing.T) {
 }
 
 func TestGetTodos(t *testing.T) {
-	todo := db.Todo{
-		Id:          123,
-		Title:       "title",
-		Description: "desc",
-		Expiry:      time.Now().Add(time.Hour),
-		IsDone:      false,
-		Completion:  50,
-	}
 
-	todos := []db.Todo{
-		todo,
-	}
-
-	testCases := []struct {
-		name          string
-		period        string
-		buildStubs    func(model *mock.MockModel)
-		checkResponse func(recorder *httptest.ResponseRecorder)
-	}{
-		{
-			name:   "StatusOK",
-			period: "",
-			buildStubs: func(model *mock.MockModel) {
-				model.EXPECT().
-					GetAllTodos().
-					Times(1).
-					Return(todos, nil)
-			},
-			checkResponse: func(recorder *httptest.ResponseRecorder) {
-				require.Equal(t, http.StatusOK, recorder.Code)
-			},
-		},
-	}
+	testCases := getGetTodosCases(t)
 
 	for i := range testCases {
 		tc := testCases[i]
@@ -448,13 +198,13 @@ func TestGetTodos(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			model := mock.NewMockModel(ctrl)
+			model := mock.NewMockDB(ctrl)
 			tc.buildStubs(model)
 
 			server := newTestServer(t, model)
 			recorder := httptest.NewRecorder()
 
-			url := fmt.Sprintf("/todos?period=%s", tc.period)
+			url := fmt.Sprintf("/todos?period=%v", tc.period)
 			request, err := http.NewRequest(http.MethodGet, url, nil)
 			require.NoError(t, err)
 

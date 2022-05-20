@@ -4,14 +4,16 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 	"github.com/vilderxyz/todos/db"
+	valid "github.com/vilderxyz/todos/validator"
 	"gorm.io/gorm"
 )
 
-// Main struct of the application that handles traffic
-// and is responsible of database connection
+// Struct of http server for Todos application.
 type Server struct {
-	Queries db.Model
+	Queries db.DB
 	Router  *gin.Engine
 }
 
@@ -20,6 +22,11 @@ type Server struct {
 func NewServer(conn *gorm.DB) *Server {
 	server := &Server{
 		Queries: db.New(conn),
+	}
+
+	// Registers custom period validator
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		v.RegisterValidation("period", valid.ValidPeriod)
 	}
 
 	server.setupRouter()
@@ -33,8 +40,8 @@ func (s *Server) Start(addr string) error {
 }
 
 // Helps handling errors much faster.
-// Prints error and stores it's value
-// in the map returned to the client's side
+//
+// Prints an error and sends it back to the client's side
 func errorResponse(err error) gin.H {
 	log.Println(err)
 	return gin.H{"error": err.Error()}
