@@ -13,3 +13,12 @@ up: build
 # stops and removes containers
 down:
 	docker-compose down
+
+mockgen:
+	mockgen -package mock -destination mock/db.go github.com/vilderxyz/todos/db Model
+
+startdb:
+	docker run --name mock -p 8888:5432 -e POSTGRES_PASSWORD=mock -e POSTGRES_USER=mock -e POSTGRES_DB=mock -d postgres:14.2
+
+stopdb:
+	docker rm -f mock

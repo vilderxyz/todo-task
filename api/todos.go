@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -46,12 +45,10 @@ func (s *Server) createTodo(ctx *gin.Context) {
 		return
 	}
 
-	res, err := s.Models.Todo.CreateOne(db.Todo{
+	res, err := s.Queries.CreateOneTodo(db.CreateTodoParams{
 		Title:       req.Title,
 		Description: req.Description,
 		Expiry:      expiryTime,
-		Completion:  0.0,
-		IsDone:      false,
 	})
 	if err != nil {
 		log.Println(err)
@@ -77,7 +74,7 @@ func (s *Server) getTodoById(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
-	res, err := s.Models.Todo.GetOneById(req.Id)
+	res, err := s.Queries.GetOneTodoById(req.Id)
 	if err != nil {
 		if err.Error() == "not found" {
 			ctx.JSON(http.StatusNotFound, errorResponse(err))
@@ -123,7 +120,7 @@ func (s *Server) updateTodoTextInfo(ctx *gin.Context) {
 		return
 	}
 
-	todo, err := s.Models.Todo.GetOneById(req.Id)
+	todo, err := s.Queries.GetOneTodoById(req.Id)
 	if err != nil {
 		if err.Error() == "not found" {
 			ctx.JSON(http.StatusNotFound, errorResponse(err))
@@ -133,14 +130,11 @@ func (s *Server) updateTodoTextInfo(ctx *gin.Context) {
 		return
 	}
 
-	res, err := s.Models.Todo.UpdateOne(db.Todo{
-		Id:          req.Id,
-		Title:       req.Title,
-		Description: req.Description,
-		Expiry:      expiryTime,
-		IsDone:      todo.IsDone,
-		Completion:  todo.Completion,
-	})
+	todo.Description = req.Description
+	todo.Expiry = expiryTime
+	todo.Title = req.Title
+
+	res, err := s.Queries.UpdateOneTodo(todo)
 	if err != nil {
 		if err.Error() == "not found" {
 			ctx.JSON(http.StatusNotFound, errorResponse(err))
@@ -173,7 +167,7 @@ func (s *Server) updateTodoCompletionInfo(ctx *gin.Context) {
 		return
 	}
 
-	todo, err := s.Models.Todo.GetOneById(req.Id)
+	todo, err := s.Queries.GetOneTodoById(req.Id)
 	if err != nil {
 		if err.Error() == "not found" {
 			ctx.JSON(http.StatusNotFound, errorResponse(err))
@@ -188,14 +182,9 @@ func (s *Server) updateTodoCompletionInfo(ctx *gin.Context) {
 		return
 	}
 
-	res, err := s.Models.Todo.UpdateOne(db.Todo{
-		Id:          req.Id,
-		Completion:  req.Completion,
-		Title:       todo.Title,
-		Description: todo.Description,
-		IsDone:      todo.IsDone,
-		Expiry:      todo.Expiry,
-	})
+	todo.Completion = req.Completion
+
+	res, err := s.Queries.UpdateOneTodo(todo)
 	if err != nil {
 		if err.Error() == "not found" {
 			ctx.JSON(http.StatusNotFound, errorResponse(err))
@@ -223,13 +212,12 @@ type UpdateTodoDoneRequest struct {
 // IsDone field must change object's value from false to true or it throws BadRequest.
 func (s *Server) updateTodoDoneInfo(ctx *gin.Context) {
 	req := UpdateTodoDoneRequest{}
-	fmt.Println("XD")
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
 
-	todo, err := s.Models.Todo.GetOneById(req.Id)
+	todo, err := s.Queries.GetOneTodoById(req.Id)
 	if err != nil {
 		if err.Error() == "not found" {
 			ctx.JSON(http.StatusNotFound, errorResponse(err))
@@ -243,14 +231,10 @@ func (s *Server) updateTodoDoneInfo(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, errorResponse(fmt.Errorf("todo is already done")))
 		return
 	}
-	res, err := s.Models.Todo.UpdateOne(db.Todo{
-		Id:          req.Id,
-		IsDone:      req.IsDone,
-		Title:       todo.Title,
-		Description: todo.Description,
-		Completion:  todo.Completion,
-		Expiry:      todo.Expiry,
-	})
+
+	todo.IsDone = req.IsDone
+
+	res, err := s.Queries.UpdateOneTodo(todo)
 	if err != nil {
 		if err.Error() == "not found" {
 			ctx.JSON(http.StatusNotFound, errorResponse(err))
@@ -279,7 +263,7 @@ func (s *Server) deleteTodo(ctx *gin.Context) {
 		return
 	}
 
-	err := s.Models.Todo.DeleteOne(req.Id)
+	err := s.Queries.DeleteOneTodo(req.Id)
 	if err != nil {
 		if err.Error() == "not found" {
 			ctx.JSON(http.StatusNotFound, errorResponse(err))
@@ -316,10 +300,14 @@ func (s *Server) getTodos(ctx *gin.Context) {
 
 	switch req.Period {
 	case "today":
-		startDate := strings.Join(strings.Split(time.Now().Format("2006-01-02"), "-"), "")
-		endDate := strings.Join(strings.Split(time.Now().AddDate(0, 0, 1).Format("2006-01-02"), "-"), "")
+		day := time.Now().AddDate(0, 0, 1).Format("2006-01-02")
+		endTime, err := time.Parse("2006-01-02", day)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+			return
+		}
 
-		todos, err = s.Models.Todo.GetMany(startDate, endDate)
+		todos, err = s.Queries.GetManyTodos(time.Now(), endTime)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 			return
@@ -327,10 +315,14 @@ func (s *Server) getTodos(ctx *gin.Context) {
 		message = "Got all todos for today"
 
 	case "tomorrow":
-		startDate := strings.Join(strings.Split(time.Now().AddDate(0, 0, 1).Format("2006-01-02"), "-"), "")
-		endDate := strings.Join(strings.Split(time.Now().AddDate(0, 0, 2).Format("2006-01-02"), "-"), "")
+		day := time.Now().AddDate(0, 0, 2).Format("2006-01-02")
+		endTime, err := time.Parse("2006-01-02", day)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+			return
+		}
 
-		todos, err = s.Models.Todo.GetMany(startDate, endDate)
+		todos, err = s.Queries.GetManyTodos(time.Now(), endTime)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 			return
@@ -339,10 +331,14 @@ func (s *Server) getTodos(ctx *gin.Context) {
 
 	case "week":
 		addDays := 8 - int(time.Now().Weekday())
-		startDate := strings.Join(strings.Split(time.Now().Format("2006-01-02"), "-"), "")
-		endDate := strings.Join(strings.Split(time.Now().AddDate(0, 0, addDays).Format("2006-01-02"), "-"), "")
+		day := time.Now().AddDate(0, 0, addDays).Format("2006-01-02")
+		endTime, err := time.Parse("2006-01-02", day)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+			return
+		}
 
-		todos, err = s.Models.Todo.GetMany(startDate, endDate)
+		todos, err = s.Queries.GetManyTodos(time.Now(), endTime)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 			return
@@ -350,7 +346,7 @@ func (s *Server) getTodos(ctx *gin.Context) {
 		message = "Got all todos for this week"
 
 	case "":
-		todos, err = s.Models.Todo.GetAll()
+		todos, err = s.Queries.GetAllTodos()
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 			return

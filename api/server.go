@@ -8,22 +8,18 @@ import (
 	"gorm.io/gorm"
 )
 
-type Config struct {
-	ServerAddr string
-}
-
 // Main struct of the application that handles traffic
 // and is responsible of database connection
 type Server struct {
-	Models db.Models
-	Router *gin.Engine
+	Queries db.Model
+	Router  *gin.Engine
 }
 
 // Creates a new Server instance with database connection
 // and returns pointer to it
 func NewServer(conn *gorm.DB) *Server {
 	server := &Server{
-		Models: db.New(conn),
+		Queries: db.New(conn),
 	}
 
 	server.setupRouter()
@@ -37,7 +33,7 @@ func (s *Server) Start(addr string) error {
 }
 
 // Helps handling errors much faster.
-// Prints error and stores it
+// Prints error and stores it's value
 // in the map returned to the client's side
 func errorResponse(err error) gin.H {
 	log.Println(err)

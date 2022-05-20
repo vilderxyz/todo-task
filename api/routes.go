@@ -14,7 +14,7 @@ func (s *Server) setupRouter() {
 
 	router.GET("/todos", s.getTodos)
 
-	router.PATCH("/todos/info", s.updateTodoTextInfo)
+	router.PATCH("/todos", s.updateTodoTextInfo)
 
 	router.PATCH("/todos/completion", s.updateTodoCompletionInfo)
 
