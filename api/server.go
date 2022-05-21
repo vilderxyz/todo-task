@@ -2,6 +2,7 @@ package api
 
 import (
 	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -35,7 +36,8 @@ func NewServer(conn *gorm.DB) *Server {
 
 // Runs Gin router on given address
 func (s *Server) Start(addr string) error {
-	log.Println("Serving at: ", addr)
+	listen := os.Getenv("LISTEN_ADDR")
+	log.Println("Serving at: ", listen)
 	return s.Router.Run(addr)
 }
 

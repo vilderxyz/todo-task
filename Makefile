@@ -11,18 +11,31 @@ up: build
 	docker-compose down
 	docker-compose up --build -d
 
+stop: 
+	docker-compose stop
+
+start:
+	docker-compose up
+
 # stops and removes containers
 down:
 	docker-compose down
 
 # generate mockModel struct implementing Model interface
-mockgen:
+mock:
 	mockgen -package mock -destination mock/db.go github.com/vilderxyz/todos/db DB
 
 # run temporary database for testing purposes
-startdb:
+db:
 	docker run --name mock -p 8888:5432 -e POSTGRES_PASSWORD=mock -e POSTGRES_USER=mock -e POSTGRES_DB=mock -d postgres:14.2
 
-# stops and remove temporary database
-stopdb:
+# runs tests and remove database container after
+test: 
+	@echo "Testing database..."
+	go test -timeout 30s -coverprofile=/tmp/vscode-gom7FsSW/go-code-cover github.com/vilderxyz/todos/db
+	@echo "Testing api..."
+	go test -timeout 30s -coverprofile=/tmp/vscode-gom7FsSW/go-code-cover github.com/vilderxyz/todos/api
+	@echo "Removing temporary database..."
 	docker rm -f mock
+
+.PHONY: db test mock build up down
