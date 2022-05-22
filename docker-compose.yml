@@ -3,7 +3,7 @@ services:
   postgres:
     image: 'postgres:14.2'
     ports: 
-      - "5432:5432"
+      - "8080:5432"
     environment:
       POSTGRES_USER: root
       POSTGRES_PASSWORD: root
@@ -13,12 +13,12 @@ services:
       context: .
       dockerfile: ./deploy/Dockerfile
     ports:
-      - "4444:80"
+      - "8090:80"
     depends_on:
       - postgres
     restart: on-failure:5
     environment:
-      LISTEN_ADDR: "http://localhost:4444/todos"
+      LISTEN_ADDR: "http://localhost:8090/todos"
       GIN_MODE: release
       DB_USER: root
       DB_PASSWORD: root
