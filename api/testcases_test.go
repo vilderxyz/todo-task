@@ -39,10 +39,10 @@ func getCreateTodoCases(t *testing.T) []CreateTodoCase {
 			body: gin.H{
 				"title":       todo.Title,
 				"description": todo.Description,
-				"expiry":      "2022-05-22",
+				"expiry":      "2222-05-22",
 			},
 			buildStubs: func(model *mock.MockDB) {
-				expiryTime, err := time.Parse("2006-01-02", "2022-05-22")
+				expiryTime, err := time.Parse("2006-01-02", "2222-05-22")
 				require.NoError(t, err)
 				req := db.CreateTodoParams{
 					Title:       todo.Title,

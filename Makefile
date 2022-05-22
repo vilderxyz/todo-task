@@ -14,7 +14,7 @@ up: build
 stop: 
 	docker-compose stop
 
-start:
+start: build
 	docker-compose up
 
 # stops and removes containers
@@ -30,11 +30,13 @@ db:
 	docker run --name mock -p 8888:5432 -e POSTGRES_PASSWORD=mock -e POSTGRES_USER=mock -e POSTGRES_DB=mock -d postgres:14.2
 
 # runs tests and remove database container after
-test: 
-	@echo "Testing database..."
-	go test -timeout 30s -coverprofile=/tmp/vscode-gom7FsSW/go-code-cover github.com/vilderxyz/todos/db
+test: db
+	@echo "Waiting a bit for database to initialize"
+	sleep 1
+	@echo "Testing database queries..."
+	go test -cover  github.com/vilderxyz/todos/db
 	@echo "Testing api..."
-	go test -timeout 30s -coverprofile=/tmp/vscode-gom7FsSW/go-code-cover github.com/vilderxyz/todos/api
+	go test -cover  github.com/vilderxyz/todos/api
 	@echo "Removing temporary database..."
 	docker rm -f mock
 
