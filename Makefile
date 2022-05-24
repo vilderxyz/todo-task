@@ -15,7 +15,7 @@ stop:
 	docker-compose stop
 
 start: build
-	docker-compose up
+	docker-compose up --build
 
 # stops and removes containers
 down:
